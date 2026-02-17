@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fate Table Night キャラクターシート</title>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+<style>
+    :root {
+        --border-color: #222;
+        --bg-gray: #ccc;
+        --bg-light-gray: #e6e6e6;
+        --font-main: "Helvetica Neue", Arial, sans-serif;
+    }
+    body { font-family: var(--font-main); background-color: #f5f5f5; padding: 20px; font-size: 12px; margin: 0; }
+
+    /* ツールバー */
+    .toolbar {
+        background-color: #333; color: #fff; padding: 10px 20px; display: flex; gap: 15px;
+        position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 5px rgba(0,0,0,0.2); justify-content: center; margin-bottom: 20px;
+    }
+    .toolbar button {
+        background-color: #555; color: #fff; border: 1px solid #777; padding: 5px 15px; font-size: 14px; cursor: pointer; border-radius: 4px; transition: 0.2s;
+    }
+    .toolbar button:hover { background-color: #777; }
+    .toolbar button.btn-primary { background-color: #007bff; border-color: #0056b3; font-weight: bold; }
+    .toolbar button.btn-primary:hover { background-color: #0056b3; }
+
+    .sheet-container { display: grid; grid-template-columns: 280px 1fr 220px; gap: 15px; background-color: #fff; padding: 20px; max-width: 1200px; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+    input[type="text"], input[type="number"], textarea { width: 100%; height: 100%; border: none; background: transparent; font-family: inherit; font-size: inherit; padding: 2px 4px; box-sizing: border-box; outline: none; }
+    textarea { resize: none; }
+    input[type="text"]:focus, input[type="number"]:focus, textarea:focus { background-color: #f0f8ff; }
+    .box { border: 2px solid var(--border-color); margin-bottom: 10px; box-sizing: border-box; }
+    .box-header { background-color: var(--bg-gray); font-weight: bold; padding: 2px 5px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+    
+    /* --- 秘匿機能用のスタイル --- */
+    .secret-toggle {
+        font-size: 10px; font-weight: normal; background-color: #eee; border: 1px solid #aaa; border-radius: 3px;
+        padding: 1px 6px; cursor: pointer; user-select: none; transition: 0.2s;
+    }
+    .secret-toggle:hover { background-color: #ddd; }
+    .secret-toggle.is-secret-mode {
+        background-color: #dc3545; color: white; border-color: #c82333;
+    }
+    /* 秘匿中のコンテンツをぼかす */
+    .secret-content.is-secret-mode textarea,
+    .secret-content.is-secret-mode input {
+        filter: blur(6px); opacity: 0.7; pointer-events: none; user-select: none;
+    }
+    /* ----------------------------- */
+
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid var(--border-color); padding: 2px; text-align: center; position: relative; }
+    th { background-color: var(--bg-gray); font-weight: normal; }
+    td.marked::after { content: '〇'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: rgba(220, 20, 60, 0.85); font-size: 22px; font-weight: normal; pointer-events: none; z-index: 10; }
+    .plus-minus { position: relative; cursor: pointer; user-select: none; display: inline-block; width: 14px; text-align: center; font-weight: bold; }
+    .plus-minus.marked::after { content: '〇'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: rgba(220, 20, 60, 0.85); font-size: 16px; font-weight: normal; pointer-events: none; z-index: 10; }
+    .left-col { display: flex; flex-direction: column; }
+    .title-logo { font-size: 28px; font-weight: bold; text-align: center; margin-bottom: 5px; font-family: serif; border-bottom: 2px solid var(--border-color); padding-bottom: 5px; }
+    .title-sub { font-size: 10px; vertical-align: super; letter-spacing: 2px; }
+    .status-box { display: flex; height: 150px; border: 2px solid var(--border-color); margin-bottom: 10px; }
+    .status-img { flex: 1; border-right: 1px solid var(--border-color); position: relative; cursor: pointer; overflow: hidden; background-color: #fafafa; display: flex; align-items: center; justify-content: center; }
+    .status-img:hover { background-color: #f0f0f0; }
+    .status-img-title { position: absolute; top: 2px; left: 2px; color: #666; font-size: 10px; z-index: 5; background: rgba(255, 255, 255, 0.7); padding: 1px 3px; }
+    .status-img-hint { color: #aaa; font-size: 11px; text-align: center; z-index: 2; }
+    #char-img-preview { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; object-position: top center; z-index: 3; display: none; }
+    .img-clear-btn { position: absolute; top: 5px; right: 5px; width: 22px; height: 22px; background-color: rgba(0, 0, 0, 0.6); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: bold; cursor: pointer; z-index: 10; opacity: 0; transition: opacity 0.2s; }
+    .img-clear-btn:hover { background-color: rgba(220, 20, 60, 0.9); }
+    .status-img.has-image:hover .img-clear-btn { opacity: 1; }
+    .status-stats { flex: 1; display: flex; flex-direction: column; }
+    .status-stats-header { text-align: center; font-size: 10px; padding: 2px; border-bottom: 1px solid var(--border-color); }
+    .stat-row { display: flex; flex: 1; border-bottom: 1px dashed #aaa; align-items: center; padding: 0 5px; }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-label { width: 40px; text-align: right; margin-right: 5px; }
+    .stat-input { flex: 1; border-bottom: 1px solid #000; }
+    .info-table td { text-align: left; }
+    .info-table .label { width: 80px; background: var(--bg-light-gray); text-align: center;}
+    .attribute-table th { background: var(--bg-gray); }
+    .attribute-table td { cursor: pointer; user-select: none; }
+    .attribute-table td:hover { background-color: #f0f0f0; }
+    .split-box { display: flex; gap: 10px; margin-bottom: 10px; }
+    .split-item { flex: 1; border: 2px solid var(--border-color); display: flex; flex-direction: column; height: 80px; }
+    .split-item .box-header { font-size: 11px; }
+    .center-col { display: flex; flex-direction: column; }
+    .calc-box { background-color: #f0f8ff; border: 2px solid #b0c4de; margin-bottom: 15px; border-radius: 4px; overflow: hidden; }
+    .calc-box .box-header { background-color: #b0c4de; color: #333; font-size: 12px; display: block; }
+    .calc-content { padding: 8px 10px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .calc-row { display: flex; align-items: center; font-size: 12px; font-weight: bold; }
+    .calc-row select { padding: 2px; font-size: 12px; border: 1px solid #999; border-radius: 3px; cursor: pointer; }
+    .calc-result-area { margin-left: auto; text-align: right; font-weight: bold; }
+    #calc-result { color: #e60000; font-size: 20px; margin-left: 5px; }
+    #calc-detail { font-size: 10px; color: #555; font-weight: normal; margin-top: 2px; }
+    .skill-table-container { margin-bottom: 15px; }
+    .skill-table { width: 100%; border-collapse: collapse; border: 1px solid #000; }
+    .skill-table th, .skill-table td { border: 1px solid #777; padding: 3px 1px; font-size: 12px; cursor: pointer; user-select: none; }
+    .skill-table td[data-is-skill="true"]:hover { background-color: #f0f0f0; }
+    .skill-table .header-main { background-color: #a0a0a0; font-weight: bold; font-size: 14px; padding: 4px; }
+    .skill-table .header-sub { background-color: #555; color: #fff; font-weight: bold; letter-spacing: 2px; }
+    .skill-table .num-col { background-color: #ccc; font-weight: bold; width: 20px; }
+    .skill-table .gap-col { width: 15px; transition: background-color 0.2s; }
+    .skill-table .gap-header { padding: 0; text-align: center; }
+    .gap-check { cursor: pointer; }
+    .skill-table td.gap-col.filled { background-color: #444; border-color: #222; }
+    .skill-list th { font-size: 11px; }
+    .person-info { margin-top: 15px; }
+    .person-info th { font-size: 10px; }
+    .checkbox-item { cursor: pointer; user-select: none; color: #000; font-size: 13px; font-weight: bold; display: inline-block; width: 12px; text-align: center; }
+    .checkbox-item:hover { color: #555; }
+    .right-col { background-color: var(--bg-light-gray); padding: 10px; border-left: 1px dashed var(--border-color); display: flex; flex-direction: column; gap: 15px; }
+    .np-box { background-color: #fff; border: 2px solid var(--border-color); display: flex; flex-direction: column; }
+    .np-field { border-bottom: 1px solid var(--border-color); display: flex; }
+    .np-field:last-child { border-bottom: none; height: 60px; }
+    .np-label { background-color: var(--bg-light-gray); width: 60px; text-align: center; padding: 2px; font-size: 10px; border-right: 1px solid var(--border-color); display: flex; align-items: center; justify-content: center; }
+    
+    #share-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; }
+    .modal-content { background: #fff; padding: 20px; border-radius: 8px; width: 80%; max-width: 500px; text-align: center; }
+    .modal-content input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+    .copy-btn { background: #28a745; color: #fff; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold; }
+    .close-btn { background: #666; color: #fff; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-left: 10px; }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+    <button class="btn-primary" onclick="saveToFirebase()">🌐 オンラインに保存して共有URLを発行</button>
+    <button onclick="saveData()">💾 PCに保存 (.json)</button>
+    <button onclick="document.getElementById('data-upload').click()">📂 データを読み込む</button>
+    <input type="file" id="data-upload" accept=".json" style="display:none;" onchange="loadData(event)">
+    <span id="save-status" style="margin-left:10px; align-self:center; font-size:12px;"></span>
+</div>
+
+<div id="share-modal">
+    <div class="modal-content">
+        <h3>キャラクターシートを保存しました！</h3>
+        <p>以下のURLをコピーして、ココフォリアの参照URLやDiscordに貼り付けてください。</p>
+        <input type="text" id="share-url-input" readonly>
+        <button class="copy-btn" onclick="copyShareUrl()">URLをコピー</button>
+        <button class="close-btn" onclick="document.getElementById('share-modal').style.display='none'">閉じる</button>
+    </div>
+</div>
+
+<div class="sheet-container">
+    <div class="left-col">
+        <div class="title-logo"><span class="title-sub">聖杯戦争RPG</span><br>Fate <span style="font-size: 0.8em;">Table Night</span></div>
+        <div class="status-box">
+            <div class="status-img" id="status-img-container" onclick="document.getElementById('char-img-upload').click()">
+                <div class="status-img-title">キャラクターイラスト</div>
+                <div class="status-img-hint" id="char-img-hint">クリックして<br>画像を選択</div>
+                <img id="char-img-preview" alt="">
+                <div class="img-clear-btn" id="char-img-clear" title="画像を消去" onclick="clearImage(event)">×</div>
+                <input type="file" id="char-img-upload" accept="image/*" style="display:none;" onchange="previewImage(event)">
+            </div>
+            <div class="status-stats">
+                <div class="status-stats-header">ステータス<br>(EX・A〜Dで任意に設定)</div>
+                <div class="stat-row"><div class="stat-label">筋力</div><div class="stat-input"><input type="text"></div></div>
+                <div class="stat-row"><div class="stat-label">耐久</div><div class="stat-input"><input type="text"></div></div>
+                <div class="stat-row"><div class="stat-label">敏捷</div><div class="stat-input"><input type="text"></div></div>
+                <div class="stat-row"><div class="stat-label">魔力</div><div class="stat-input"><input type="text"></div></div>
+                <div class="stat-row"><div class="stat-label">幸運</div><div class="stat-input"><input type="text"></div></div>
+                <div class="stat-row"><div class="stat-label">宝具</div><div class="stat-input"><input type="text"></div></div>
+            </div>
+        </div>
+        <div class="box">
+            <table class="info-table">
+                <tr><td class="label" style="font-weight:bold; background:var(--bg-gray);">サーヴァント<br>クラス</td><td colspan="2"><input type="text"></td></tr>
+                <tr><td class="label">レベル／経験点</td><td colspan="2" style="display:flex;"><input type="text" style="width:45%; text-align:right;"> / <input type="text" style="width:45%;"></td></tr>
+                <tr><td class="label">真名判定：</td><td style="border-right:none;"><input type="text"></td><td style="border-left:none; text-align:left; font-size:10px;">霊格効果：<input type="text" style="width:70%;"></td></tr>
+            </table>
+        </div>
+        <div class="box">
+            <div class="box-header" style="display:block;">属性・サーヴァント</div>
+            <table class="attribute-table">
+                <tr><th style="width:25%;">方針</th><td onclick="toggleMark(this)">秩序</td><td onclick="toggleMark(this)">中立</td><td onclick="toggleMark(this)">混沌</td></tr>
+                <tr><th>精神</th><td onclick="toggleMark(this)">善</td><td onclick="toggleMark(this)">中庸</td><td onclick="toggleMark(this)">悪</td></tr>
+            </table>
+        </div>
+        <div class="split-box">
+            <div class="split-item"><div class="box-header" style="display:block;">生命力</div><div style="flex:1; display:flex; align-items:center; justify-content:center; font-size:20px;"><input type="number" min="0" max="10" style="text-align:right; width:40%;"> / <input type="number" min="0" max="10" style="width:40%;"></div></div>
+            <div class="split-item"><div class="box-header" style="background:#fff; border-bottom:none; color:#666; display:block;">バッドステータス (BS)</div><textarea></textarea></div>
+        </div>
+        <div class="split-box">
+            <div class="split-item" style="height:50px;"><div class="box-header" style="display:block;">魔力</div><div style="flex:1; display:flex; align-items:center; justify-content:center;"><input type="number" min="0" max="10" style="text-align:right; width:40%;"> / <input type="number" min="0" max="10" style="width:40%;"></div></div>
+            <div class="split-item" style="height:110px; grid-row: span 2;"><div class="box-header" style="background:#fff; border-bottom:none; color:#666; display:block;">アイテム</div><textarea></textarea></div>
+        </div>
+        <div class="split-box" style="margin-top:-10px;">
+            <div class="split-item" style="height:50px; width:48%; flex:none;"><div class="box-header" style="display:block;">令呪</div><div style="flex:1; display:flex; align-items:center; justify-content:center;"><input type="number" min="0" max="10" style="text-align:right; width:40%;"> / <input type="number" min="0" max="10" style="width:40%;"></div></div>
+        </div>
+        <div class="box" style="margin-top:10px;">
+            <table class="info-table">
+                <tr><td class="label" style="font-weight:bold; background:var(--bg-gray);">マスター名</td><td><input type="text"></td></tr>
+                <tr><td class="label">年齢／性別</td><td><input type="text"></td></tr>
+                <tr><td class="label">表の職業</td><td><input type="text"></td></tr>
+            </table>
+        </div>
+        <div class="box">
+            <div class="box-header" style="display:block;">属性・マスター</div>
+            <table class="attribute-table">
+                <tr><th style="width:25%;">方針</th><td onclick="toggleMark(this)">秩序</td><td onclick="toggleMark(this)">中立</td><td onclick="toggleMark(this)">混沌</td></tr>
+                <tr><th>精神</th><td onclick="toggleMark(this)">善</td><td onclick="toggleMark(this)">中庸</td><td onclick="toggleMark(this)">悪</td></tr>
+            </table>
+        </div>
+    </div>
+
+    <div class="center-col">
+        <div class="calc-box">
+            <div class="box-header">判定シミュレーター</div>
+            <div class="calc-content">
+                <div class="calc-row">指定特技：&nbsp;<select id="calc-target-skill" onchange="calculateTarget()"><option value="">-- 特技を選択 --</option></select></div>
+                <div class="calc-row"><label style="cursor: pointer; font-weight: normal;"><input type="checkbox" id="calc-loop" onchange="calculateTarget()" style="vertical-align: middle;">「変化」適用</label></div>
+                <div class="calc-row">『無窮の武練』分野：&nbsp;<select id="calc-mukyu" onchange="calculateTarget()"><option value="">-- 適用なし --</option><option value="1">起源</option><option value="3">伝承</option><option value="5">社会</option><option value="7">技術</option><option value="9">闘法</option><option value="11">魔術</option></select></div>
+                <div class="calc-result-area">目標値: <span id="calc-result">-</span><div id="calc-detail"></div></div>
+            </div>
+        </div>
+
+        <div class="skill-table-container">
+            <table class="skill-table" id="main-skill-table">
+                <tr><th colspan="13" class="header-main">特技表</th></tr>
+                <tr>
+                    <th class="num-col" style="background:#a0a0a0;"></th>
+                    <th class="header-sub gap-header"><input type="checkbox" class="gap-check" data-gap-idx="0" onchange="toggleGapFill(this, 0)" title="この溝を埋める"></th><th class="header-sub">起源</th>
+                    <th class="header-sub gap-header"><input type="checkbox" class="gap-check" data-gap-idx="2" onchange="toggleGapFill(this, 2)" title="この溝を埋める"></th><th class="header-sub">伝承</th>
+                    <th class="header-sub gap-header"><input type="checkbox" class="gap-check" data-gap-idx="4" onchange="toggleGapFill(this, 4)" title="この溝を埋める"></th><th class="header-sub">社会</th>
+                    <th class="header-sub gap-header"><input type="checkbox" class="gap-check" data-gap-idx="6" onchange="toggleGapFill(this, 6)" title="この溝を埋める"></th><th class="header-sub">技術</th>
+                    <th class="header-sub gap-header"><input type="checkbox" class="gap-check" data-gap-idx="8" onchange="toggleGapFill(this, 8)" title="この溝を埋める"></th><th class="header-sub">闘法</th>
+                    <th class="header-sub gap-header"><input type="checkbox" class="gap-check" data-gap-idx="10" onchange="toggleGapFill(this, 10)" title="この溝を埋める"></th><th class="header-sub">魔術</th>
+                </tr>
+                <tr><td class="num-col">2</td><td class="gap-col"></td><td onclick="toggleMark(this)">虚無</td><td class="gap-col"></td><td onclick="toggleMark(this)">奇譚</td><td class="gap-col"></td><td onclick="toggleMark(this)">文学</td><td class="gap-col"></td><td onclick="toggleMark(this)">暗号</td><td class="gap-col"></td><td onclick="toggleMark(this)">火器</td><td class="gap-col"></td><td onclick="toggleMark(this)">憑依</td></tr>
+                <tr><td class="num-col">3</td><td class="gap-col"></td><td onclick="toggleMark(this)">混沌</td><td class="gap-col"></td><td onclick="toggleMark(this)">逸話</td><td class="gap-col"></td><td onclick="toggleMark(this)">心理学</td><td class="gap-col"></td><td onclick="toggleMark(this)">情報</td><td class="gap-col"></td><td onclick="toggleMark(this)">射撃</td><td class="gap-col"></td><td onclick="toggleMark(this)">霊魂</td></tr>
+                <tr><td class="num-col">4</td><td class="gap-col"></td><td onclick="toggleMark(this)">夢想</td><td class="gap-col"></td><td onclick="toggleMark(this)">昔話</td><td class="gap-col"></td><td onclick="toggleMark(this)">哲学</td><td class="gap-col"></td><td onclick="toggleMark(this)">電子</td><td class="gap-col"></td><td onclick="toggleMark(this)">投擲</td><td class="gap-col"></td><td onclick="toggleMark(this)">幻術</td></tr>
+                <tr><td class="num-col">5</td><td class="gap-col"></td><td onclick="toggleMark(this)">境界</td><td class="gap-col"></td><td onclick="toggleMark(this)">伝記</td><td class="gap-col"></td><td onclick="toggleMark(this)">芸術</td><td class="gap-col"></td><td onclick="toggleMark(this)">機械</td><td class="gap-col"></td><td onclick="toggleMark(this)">戦術</td><td class="gap-col"></td><td onclick="toggleMark(this)">魔眼</td></tr>
+                <tr><td class="num-col">6</td><td class="gap-col"></td><td onclick="toggleMark(this)">静止</td><td class="gap-col"></td><td onclick="toggleMark(this)">戦記</td><td class="gap-col"></td><td onclick="toggleMark(this)">医学</td><td class="gap-col"></td><td onclick="toggleMark(this)">分解</td><td class="gap-col"></td><td onclick="toggleMark(this)">野戦</td><td class="gap-col"></td><td onclick="toggleMark(this)">呪術</td></tr>
+                <tr><td class="num-col">7</td><td class="gap-col"></td><td onclick="toggleMark(this)">減速</td><td class="gap-col"></td><td onclick="toggleMark(this)">物語</td><td class="gap-col"></td><td onclick="toggleMark(this)">人脈</td><td class="gap-col"></td><td onclick="toggleMark(this)">指揮</td><td class="gap-col"></td><td onclick="toggleMark(this)">格闘</td><td class="gap-col"></td><td onclick="toggleMark(this)">結界</td></tr>
+                <tr><td class="num-col">8</td><td class="gap-col"></td><td onclick="toggleMark(this)">加速</td><td class="gap-col"></td><td onclick="toggleMark(this)">英雄譚</td><td class="gap-col"></td><td onclick="toggleMark(this)">軍事</td><td class="gap-col"></td><td onclick="toggleMark(this)">組立</td><td class="gap-col"></td><td onclick="toggleMark(this)">怪力</td><td class="gap-col"></td><td onclick="toggleMark(this)">言霊</td></tr>
+                <tr><td class="num-col">9</td><td class="gap-col"></td><td onclick="toggleMark(this)">具現</td><td class="gap-col"></td><td onclick="toggleMark(this)">叙事詩</td><td class="gap-col"></td><td onclick="toggleMark(this)">経済</td><td class="gap-col"></td><td onclick="toggleMark(this)">変装</td><td class="gap-col"></td><td onclick="toggleMark(this)">刀剣</td><td class="gap-col"></td><td onclick="toggleMark(this)">錬金術</td></tr>
+                <tr><td class="num-col">10</td><td class="gap-col"></td><td onclick="toggleMark(this)">禁忌</td><td class="gap-col"></td><td onclick="toggleMark(this)">予言</td><td class="gap-col"></td><td onclick="toggleMark(this)">裏社会</td><td class="gap-col"></td><td onclick="toggleMark(this)">潜伏</td><td class="gap-col"></td><td onclick="toggleMark(this)">罠</td><td class="gap-col"></td><td onclick="toggleMark(this)">禁呪</td></tr>
+                <tr><td class="num-col">11</td><td class="gap-col"></td><td onclick="toggleMark(this)">星界</td><td class="gap-col"></td><td onclick="toggleMark(this)">黙示録</td><td class="gap-col"></td><td onclick="toggleMark(this)">民俗学</td><td class="gap-col"></td><td onclick="toggleMark(this)">軽業</td><td class="gap-col"></td><td onclick="toggleMark(this)">偵察</td><td class="gap-col"></td><td onclick="toggleMark(this)">千里眼</td></tr>
+                <tr><td class="num-col">12</td><td class="gap-col"></td><td onclick="toggleMark(this)">異界</td><td class="gap-col"></td><td onclick="toggleMark(this)">神話</td><td class="gap-col"></td><td onclick="toggleMark(this)">考古学</td><td class="gap-col"></td><td onclick="toggleMark(this)">乗物</td><td class="gap-col"></td><td onclick="toggleMark(this)">暗殺</td><td class="gap-col"></td><td onclick="toggleMark(this)">召喚</td></tr>
+            </table>
+        </div>
+
+        <div class="box">
+            <div class="box-header" style="display:block;">スキル</div>
+            <table class="skill-list">
+                <tr><th style="width:25%;">名 称</th><th style="width:12%;">種類</th><th style="width:10%;">コスト</th><th style="width:10%;">射程</th><th style="width:18%;">指定特技</th><th>効 果</th></tr>
+                <tr><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td></tr>
+                <tr><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td></tr>
+                <tr><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td></tr>
+                <tr><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td></tr>
+                <tr><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td></tr>
+                <tr><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td></tr>
+                <tr><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td></tr>
+                <tr><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td></tr>
+            </table>
+        </div>
+
+        <div style="display:flex; gap:10px;">
+            <div class="box person-info" style="flex:3;">
+                <div class="box-header" style="display:block;">人物・情報</div>
+                <table>
+                    <tr><th style="width:25%;">名 称</th><th style="width:40%;">秘密／居所／宝具／真名</th><th style="width:20%;">絆／タイプ</th><th style="width:15%;">絆点数</th></tr>
+                    <script>
+                        for(let i=0; i<13; i++) {
+                            document.write(`
+                            <tr>
+                                <td><input type="text"></td>
+                                <td><span class="checkbox-item" onclick="toggleCheck(this)">□</span> / <span class="checkbox-item" onclick="toggleCheck(this)">□</span> / <span class="checkbox-item" onclick="toggleCheck(this)">□</span> <span class="checkbox-item" onclick="toggleCheck(this)">□</span> <span class="checkbox-item" onclick="toggleCheck(this)">□</span> / <span class="checkbox-item" onclick="toggleCheck(this)">□</span></td>
+                                <td><span class="checkbox-item" onclick="toggleCheck(this)">□</span> / <span class="plus-minus" onclick="toggleMark(this)">+</span> <span class="plus-minus" onclick="toggleMark(this)">-</span></td>
+                                <td><input type="text" style="text-align:center;"></td>
+                            </tr>
+                            `);
+                        }
+                    </script>
+                </table>
+            </div>
+            <div class="box person-info" style="flex:1;">
+                <div class="box-header" style="display:block;">弱点スキル</div>
+                <table>
+                    <tr><th style="text-align:left; background:var(--bg-light-gray); font-size:10px;">名称</th></tr><tr><td><input type="text"></td></tr><tr><th style="text-align:left; background:var(--bg-light-gray); font-size:10px;">効果</th></tr><tr><td style="height:35px;"><textarea></textarea></td></tr>
+                    <tr><th style="text-align:left; background:var(--bg-light-gray); font-size:10px;">名称</th></tr><tr><td><input type="text"></td></tr><tr><th style="text-align:left; background:var(--bg-light-gray); font-size:10px;">効果</th></tr><tr><td style="height:35px;"><textarea></textarea></td></tr>
+                    <tr><th style="text-align:left; background:var(--bg-light-gray); font-size:10px;">名称</th></tr><tr><td><input type="text"></td></tr><tr><th style="text-align:left; background:var(--bg-light-gray); font-size:10px;">効果</th></tr><tr><td style="height:35px;"><textarea></textarea></td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="right-col">
+        <script>
+            for(let i=0; i<3; i++) {
+                document.write(`
+                <div class="np-box secret-content" id="secret-np-${i}">
+                    <div class="box-header">
+                        <span>宝具</span>
+                        <div class="secret-toggle" onclick="toggleSecret('secret-np-${i}')" title="クリックで秘匿/公開を切り替え">👁️ 公開</div>
+                    </div>
+                    <div class="np-field"><div class="np-label">指定特技</div><div style="flex:1;"><input type="text"></div></div>
+                    <div class="np-field" style="flex-direction:column; height:90px;">
+                        <div style="font-size:10px; color:#666; padding-left:2px;">効果</div>
+                        <textarea style="flex:1;"></textarea>
+                    </div>
+                </div>
+                `);
+            }
+        </script>
+        
+        <div class="np-box secret-content" id="secret-truename" style="flex:1;">
+            <div class="box-header">
+                <span>真名</span>
+                <div class="secret-toggle" onclick="toggleSecret('secret-truename')" title="クリックで秘匿/公開を切り替え">👁️ 公開</div>
+            </div>
+            <div class="np-field" style="flex-direction:column; height:100%;">
+                <div style="font-size:10px; color:#666; padding-left:2px;">説明</div>
+                <textarea style="flex:1; height:200px;"></textarea>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const firebaseConfig = {
+  apiKey: "AIzaSyDJdb80UPCVlPeZJUZAeRkUPFEofZFl8PM",
+  authDomain: "fate-table-night-cs.firebaseapp.com",
+  projectId: "fate-table-night-cs",
+  storageBucket: "fate-table-night-cs.firebasestorage.app",
+  messagingSenderId: "32996163719",
+  appId: "1:32996163719:web:ff67a8458f723fc50ff822",
+  measurementId: "G-E6LNQ9TLTP"
+};
+
+    let db = null;
+    if (Object.keys(firebaseConfig).length > 0) {
+        firebase.initializeApp(firebaseConfig);
+        db = firebase.firestore();
+    }
+
+    // --- 秘匿状態の切り替え関数 ---
+    function toggleSecret(containerId) {
+        const container = document.getElementById(containerId);
+        const toggleBtn = container.querySelector('.secret-toggle');
+        
+        // クラスを付け外しして状態を切り替え
+        container.classList.toggle('is-secret-mode');
+        
+        if (container.classList.contains('is-secret-mode')) {
+            toggleBtn.innerHTML = "🔒 秘匿";
+        } else {
+            toggleBtn.innerHTML = "👁️ 公開";
+        }
+    }
+
+    window.onload = async function() {
+        initCalculator();
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const docId = urlParams.get('id');
+        
+        if (docId && db) {
+            document.getElementById('save-status').innerText = "データ読み込み中...";
+            try {
+                const doc = await db.collection("characters").doc(docId).get();
+                if (doc.exists) {
+                    applyDataToSheet(doc.data());
+                    document.getElementById('save-status').innerText = "読み込み完了";
+                    setTimeout(() => document.getElementById('save-status').innerText="", 3000);
+                } else {
+                    alert("データが見つかりません。");
+                    document.getElementById('save-status').innerText = "";
+                }
+            } catch (error) {
+                alert("データの読み込みに失敗しました。");
+            }
+        }
+    };
+
+    async function saveToFirebase() {
+        if (!db) { alert("Firebaseの設定がされていません！"); return; }
+        const data = collectDataFromSheet();
+        const statusEl = document.getElementById('save-status');
+        statusEl.innerText = "保存中...";
+        try {
+            const urlParams = new URLSearchParams(window.location.search);
+            let docId = urlParams.get('id');
+
+            if (docId) {
+                await db.collection("characters").doc(docId).set(data);
+            } else {
+                const docRef = await db.collection("characters").add(data);
+                docId = docRef.id;
+            }
+            statusEl.innerText = "保存完了！";
+            if (window.location.protocol !== 'file:') {
+                const shareUrl = window.location.origin + window.location.pathname + "?id=" + docId;
+                document.getElementById('share-url-input').value = shareUrl;
+                document.getElementById('share-modal').style.display = 'flex';
+                window.history.replaceState(null, null, "?id=" + docId);
+            } else {
+                alert("パソコン内のファイルとして開いているためURLは発行されません。GitHub Pagesなどにアップロードしてください。");
+            }
+        } catch (error) {
+            alert("保存に失敗しました。"); statusEl.innerText = "";
+        }
+    }
+
+    function copyShareUrl() {
+        const copyText = document.getElementById("share-url-input");
+        copyText.select(); document.execCommand("copy");
+        alert("コピーしました！");
+    }
+
+    function collectDataFromSheet() {
+        // 秘匿状態の保存データを作成
+        const secretStates = {};
+        document.querySelectorAll('.secret-content').forEach(container => {
+            secretStates[container.id] = container.classList.contains('is-secret-mode');
+        });
+
+        return {
+            texts: Array.from(document.querySelectorAll('.sheet-container input[type="text"], .sheet-container input[type="number"], .sheet-container textarea')).map(el => el.value),
+            marks: Array.from(document.querySelectorAll('.sheet-container td[onclick*="toggleMark"], .sheet-container .plus-minus[onclick*="toggleMark"]')).map(el => el.classList.contains('marked')),
+            checks: Array.from(document.querySelectorAll('.sheet-container .checkbox-item')).map(el => el.innerText),
+            gaps: Array.from(document.querySelectorAll('.sheet-container .gap-check')).map(el => el.checked),
+            calcTarget: document.getElementById('calc-target-skill').value,
+            calcLoop: document.getElementById('calc-loop').checked,
+            calcMukyu: document.getElementById('calc-mukyu').value,
+            image: document.getElementById('char-img-preview').src,
+            secrets: secretStates // 保存データに秘匿状態を追加
+        };
+    }
+
+    function applyDataToSheet(data) {
+        const texts = document.querySelectorAll('.sheet-container input[type="text"], .sheet-container input[type="number"], .sheet-container textarea');
+        if(data.texts) data.texts.forEach((val, i) => { if(texts[i]) texts[i].value = val; });
+        
+        const marks = document.querySelectorAll('.sheet-container td[onclick*="toggleMark"], .sheet-container .plus-minus[onclick*="toggleMark"]');
+        if(data.marks) data.marks.forEach((isMarked, i) => { 
+            if(marks[i]) { if(isMarked) marks[i].classList.add('marked'); else marks[i].classList.remove('marked'); }
+        });
+
+        const checks = document.querySelectorAll('.sheet-container .checkbox-item');
+        if(data.checks) data.checks.forEach((val, i) => { 
+            if(checks[i]) { checks[i].innerText = val; checks[i].style.color = val === '✅' ? '#28a745' : '#000'; }
+        });
+
+        const gaps = document.querySelectorAll('.sheet-container .gap-check');
+        if(data.gaps) data.gaps.forEach((isChecked, i) => { 
+            if(gaps[i]) { gaps[i].checked = isChecked; if(isChecked) toggleGapFill(gaps[i], parseInt(gaps[i].getAttribute('data-gap-idx'))); }
+        });
+
+        if(data.calcTarget !== undefined) document.getElementById('calc-target-skill').value = data.calcTarget;
+        if(data.calcLoop !== undefined) document.getElementById('calc-loop').checked = data.calcLoop;
+        if(data.calcMukyu !== undefined) document.getElementById('calc-mukyu').value = data.calcMukyu;
+
+        if(data.image) {
+            const preview = document.getElementById('char-img-preview'); const hint = document.getElementById('char-img-hint'); const container = document.getElementById('status-img-container');
+            preview.src = data.image;
+            if(data.image.startsWith('data:image')) { preview.style.display = 'block'; hint.style.display = 'none'; container.classList.add('has-image'); } 
+            else { preview.style.display = 'none'; hint.style.display = 'block'; container.classList.remove('has-image'); }
+        }
+
+        // 秘匿状態の復元
+        if(data.secrets) {
+            for (const [containerId, isSecret] of Object.entries(data.secrets)) {
+                const container = document.getElementById(containerId);
+                if(container) {
+                    const toggleBtn = container.querySelector('.secret-toggle');
+                    if(isSecret) {
+                        container.classList.add('is-secret-mode');
+                        toggleBtn.innerHTML = "🔒 秘匿";
+                    } else {
+                        container.classList.remove('is-secret-mode');
+                        toggleBtn.innerHTML = "👁️ 公開";
+                    }
+                }
+            }
+        }
+
+        calculateTarget(); 
+    }
+
+    function saveData() {
+        const data = collectDataFromSheet();
+        const blob = new Blob([JSON.stringify(data)], {type: 'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url;
+        const charName = document.querySelectorAll('.sheet-container input[type="text"]')[18].value || "character";
+        a.download = `FateTableNight_${charName}.json`; a.click(); URL.revokeObjectURL(url);
+    }
+
+    function loadData(event) {
+        const file = event.target.files[0]; if(!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) { try { applyDataToSheet(JSON.parse(e.target.result)); alert("データを読み込みました！"); } catch(err) { alert("失敗しました。"); } };
+        reader.readAsText(file); event.target.value = '';
+    }
+
+    function previewImage(event) {
+        const file = event.target.files[0]; if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = new Image();
+            img.onload = function() {
+                const maxSize = 600; let width = img.width; let height = img.height;
+                if (width > height) { if (width > maxSize) { height *= maxSize / width; width = maxSize; } } 
+                else { if (height > maxSize) { width *= maxSize / height; height = maxSize; } }
+                const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height;
+                const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height);
+                const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                
+                const preview = document.getElementById('char-img-preview'); const hint = document.getElementById('char-img-hint'); const container = document.getElementById('status-img-container');
+                preview.src = compressedDataUrl; preview.style.display = 'block'; hint.style.display = 'none'; container.classList.add('has-image'); 
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function clearImage(event) {
+        event.stopPropagation(); const preview = document.getElementById('char-img-preview'); const hint = document.getElementById('char-img-hint'); const container = document.getElementById('status-img-container');
+        document.getElementById('char-img-upload').value = ''; preview.src = ''; preview.style.display = 'none'; hint.style.display = 'block'; container.classList.remove('has-image');
+    }
+
+    // -----------------------------------------------------------
+    // 目標値シミュレーター
+    // -----------------------------------------------------------
+    function initCalculator() {
+        const table = document.getElementById('main-skill-table'); const select = document.getElementById('calc-target-skill');
+        const categories = { 1: "起源", 3: "伝承", 5: "社会", 7: "技術", 9: "闘法", 11: "魔術" }; const optgroups = {};
+        for(let col in categories) { optgroups[col] = document.createElement('optgroup'); optgroups[col].label = categories[col]; }
+        const rows = table.querySelectorAll('tr');
+        for(let r = 2; r <= 12; r++) {
+            const tr = rows[r]; if(!tr) continue; const tds = tr.querySelectorAll('td'); let colIdx = 0;
+            for(let i = 1; i < tds.length; i++) {
+                const td = tds[i]; td.setAttribute('data-row', r); td.setAttribute('data-col', colIdx); 
+                if(td.classList.contains('gap-col')) { td.setAttribute('data-is-skill', 'false'); } else {
+                    const skillName = td.innerText.trim(); td.setAttribute('data-is-skill', 'true'); td.setAttribute('data-name', skillName);
+                    const option = document.createElement('option'); option.value = r + ',' + colIdx; option.text = skillName;
+                    if(optgroups[colIdx]) optgroups[colIdx].appendChild(option);
+                }
+                colIdx++;
+            }
+        }
+        for(let col in categories) select.appendChild(optgroups[col]);
+    }
+
+    function toggleGapFill(checkbox, colIndex) {
+        if(checkbox.checked) document.querySelectorAll('.gap-check').forEach(cb => { if(cb !== checkbox) cb.checked = false; });
+        document.querySelectorAll('#main-skill-table td.gap-col').forEach(td => td.classList.remove('filled'));
+        if(checkbox.checked) {
+            const rows = document.querySelectorAll('#main-skill-table tr');
+            for(let r = 2; r <= 12; r++) { const tr = rows[r]; if(!tr) continue; const td = tr.querySelector(`td[data-col="${colIndex}"]`); if(td) td.classList.add('filled'); }
+        }
+        calculateTarget();
+    }
+
+    function calculateTarget() {
+        const select = document.getElementById('calc-target-skill'); const resultSpan = document.getElementById('calc-result'); const detailSpan = document.getElementById('calc-detail');
+        const targetVal = select.value; if(!targetVal) { resultSpan.innerText = '-'; detailSpan.innerText = ''; return; }
+        const [tRow, tCol] = targetVal.split(',').map(Number); const isLoop = document.getElementById('calc-loop').checked;
+        const mukyuVal = document.getElementById('calc-mukyu').value; const mukyuCol = mukyuVal ? parseInt(mukyuVal) : -1;
+        const markedCells = document.querySelectorAll('#main-skill-table td.marked[data-is-skill="true"]');
+        const checkedGap = document.querySelector('.gap-check:checked'); const filledGapCol = checkedGap ? parseInt(checkedGap.getAttribute('data-gap-idx')) : -1;
+        const targetCell = document.querySelector(`#main-skill-table td[data-row="${tRow}"][data-col="${tCol}"]`);
+        
+        if(targetCell && targetCell.classList.contains('marked')) { resultSpan.innerText = '5'; detailSpan.innerText = '(修得済みのため目標値は5)'; return; }
+
+        function getHoriDist(c1, c2) {
+            let cMin = Math.min(c1, c2); let cMax = Math.max(c1, c2); let distDirect = cMax - cMin;
+            if(filledGapCol > cMin && filledGapCol < cMax) distDirect -= 1;
+            if(isLoop) {
+                let distWrap = (cMin - 1) + 2 + (11 - cMax);
+                if(filledGapCol !== -1 && (filledGapCol < cMin || filledGapCol > cMax)) distWrap -= 1;
+                return Math.min(distDirect, distWrap);
+            }
+            return distDirect;
+        }
+        
+        let minDistance = Infinity; let bestSkill = "";
+        markedCells.forEach(cell => {
+            const r = parseInt(cell.getAttribute('data-row')); const c = parseInt(cell.getAttribute('data-col')); const name = cell.getAttribute('data-name');
+            let distDirect = Math.abs(r - tRow) + getHoriDist(c, tCol);
+            let distMukyu = Infinity;
+            if(mukyuCol !== -1) {
+                let horiDist = getHoriDist(c, mukyuCol) + getHoriDist(mukyuCol, tCol);
+                let vertDistLoop = Math.min(r, tRow) - 2 + 1 + 12 - Math.max(r, tRow); distMukyu = horiDist + vertDistLoop;
+            }
+            const dist = Math.min(distDirect, distMukyu);
+            if(dist < minDistance) { minDistance = dist; bestSkill = name; }
+        });
+        if(minDistance === Infinity) { resultSpan.innerText = '判定不可'; detailSpan.innerText = '(特技が一つもマークされていません)'; } 
+        else { resultSpan.innerText = 5 + minDistance; detailSpan.innerText = `(代用: ${bestSkill} / 距離+${minDistance})`; }
+    }
+
+    function toggleMark(element) { element.classList.toggle('marked'); calculateTarget(); }
+    function toggleCheck(span) { if(span.innerText === '□') { span.innerText = '✅'; span.style.color = '#28a745'; } else { span.innerText = '□'; span.style.color = '#000'; } }
+</script>
+
+</body>
+</html>
