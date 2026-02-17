@@ -157,7 +157,17 @@
         <div class="box">
             <table class="info-table">
                 <tr><td class="label" style="font-weight:bold; background:var(--bg-gray);">サーヴァント<br>クラス</td><td colspan="2"><input type="text"></td></tr>
-                <tr><td class="label">レベル／経験点</td><td colspan="2" style="display:flex;"><input type="text" style="width:45%; text-align:right;"> / <input type="text" style="width:45%;"></td></tr>
+                
+                <tr>
+                    <td class="label">レベル／経験点</td>
+                    <td colspan="2">
+                        <div style="display:flex; align-items:center; width:100%; gap:4px;">
+                            <input type="number" min="0" style="flex:1; text-align:right;">
+                            <span>/</span>
+                            <input type="number" min="0" style="flex:1;">
+                        </div>
+                    </td>
+                </tr>
                 
                 <tr>
                     <td class="label">真名判定</td>
@@ -169,7 +179,6 @@
                         </div>
                     </td>
                 </tr>
-                
             </table>
         </div>
         <div class="box">
@@ -179,18 +188,32 @@
                 <tr><th>精神</th><td onclick="toggleMark(this)">善</td><td onclick="toggleMark(this)">中庸</td><td onclick="toggleMark(this)">悪</td></tr>
             </table>
         </div>
+        
         <div class="split-box">
             <div class="split-item"><div class="box-header" style="display:block;">生命力</div><div style="flex:1; display:flex; align-items:center; justify-content:center; font-size:20px;"><input type="number" min="0" max="10" style="text-align:right; width:40%;"> / <input type="number" min="0" max="10" style="width:40%;"></div></div>
             <div class="split-item"><div class="box-header" style="background:#fff; border-bottom:none; color:#666; display:block;">バッドステータス (BS)</div><textarea></textarea></div>
         </div>
-        <div class="split-box">
-            <div class="split-item" style="height:50px;"><div class="box-header" style="display:block;">魔力</div><div style="flex:1; display:flex; align-items:center; justify-content:center;"><input type="number" min="0" max="10" style="text-align:right; width:40%;"> / <input type="number" min="0" max="10" style="width:40%;"></div></div>
-            <div class="split-item" style="height:110px; grid-row: span 2;"><div class="box-header" style="background:#fff; border-bottom:none; color:#666; display:block;">アイテム</div><textarea></textarea></div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+            <div class="box" style="margin-bottom: 0; display: flex; flex-direction: column; height: 50px;">
+                <div class="box-header" style="display:block;">魔力</div>
+                <div style="flex:1; display:flex; align-items:center; justify-content:center; font-size:20px;">
+                    <input type="number" min="0" max="10" style="text-align:right; width:40%;"> / <input type="number" min="0" max="10" style="width:40%;">
+                </div>
+            </div>
+            <div class="box" style="margin-bottom: 0; display: flex; flex-direction: column; grid-row: span 2;">
+                <div class="box-header" style="background:#fff; border-bottom:none; color:#666; display:block;">アイテム</div>
+                <textarea style="flex:1;"></textarea>
+            </div>
+            <div class="box" style="margin-bottom: 0; display: flex; flex-direction: column; height: 50px;">
+                <div class="box-header" style="display:block;">令呪</div>
+                <div style="flex:1; display:flex; align-items:center; justify-content:center; font-size:20px;">
+                    <input type="number" min="0" max="10" style="text-align:right; width:40%;"> / <input type="number" min="0" max="10" style="width:40%;">
+                </div>
+            </div>
         </div>
-        <div class="split-box" style="margin-top:-10px;">
-            <div class="split-item" style="height:50px; width:48%; flex:none;"><div class="box-header" style="display:block;">令呪</div><div style="flex:1; display:flex; align-items:center; justify-content:center;"><input type="number" min="0" max="10" style="text-align:right; width:40%;"> / <input type="number" min="0" max="10" style="width:40%;"></div></div>
-        </div>
-        <div class="box" style="margin-top:10px;">
+
+        <div class="box">
             <table class="info-table">
                 <tr><td class="label" style="font-weight:bold; background:var(--bg-gray);">マスター名</td><td><input type="text"></td></tr>
                 <tr><td class="label">年齢／性別</td><td><input type="text"></td></tr>
@@ -204,6 +227,14 @@
                 <tr><th>精神</th><td onclick="toggleMark(this)">善</td><td onclick="toggleMark(this)">中庸</td><td onclick="toggleMark(this)">悪</td></tr>
             </table>
         </div>
+
+        <div class="box" style="flex:1; display:flex; flex-direction:column; margin-bottom:0;">
+            <div class="box-header" style="display:block;">マスター設定・メモ</div>
+            <div style="flex:1; padding:2px;">
+                <textarea style="width:100%; height:100%; resize:none;"></textarea>
+            </div>
+        </div>
+
     </div>
 
     <div class="center-col">
@@ -277,12 +308,24 @@
                     </script>
                 </table>
             </div>
-            <div class="box person-info" style="flex:1;">
+
+            <div class="box person-info" style="flex:1; display:flex; flex-direction:column;">
                 <div class="box-header" style="display:block;">弱点スキル</div>
-                <table>
-                    <tr><th style="text-align:left; background:var(--bg-light-gray); font-size:10px;">名称</th></tr><tr><td><input type="text"></td></tr><tr><th style="text-align:left; background:var(--bg-light-gray); font-size:10px;">効果</th></tr><tr><td style="height:35px;"><textarea></textarea></td></tr>
-                    <tr><th style="text-align:left; background:var(--bg-light-gray); font-size:10px;">名称</th></tr><tr><td><input type="text"></td></tr><tr><th style="text-align:left; background:var(--bg-light-gray); font-size:10px;">効果</th></tr><tr><td style="height:35px;"><textarea></textarea></td></tr>
-                    <tr><th style="text-align:left; background:var(--bg-light-gray); font-size:10px;">名称</th></tr><tr><td><input type="text"></td></tr><tr><th style="text-align:left; background:var(--bg-light-gray); font-size:10px;">効果</th></tr><tr><td style="height:35px;"><textarea></textarea></td></tr>
+                <table style="flex:1;">
+                    <tr><th style="text-align:left; background:var(--bg-light-gray); font-size:10px;">名称</th></tr>
+                    <tr><td><input type="text"></td></tr>
+                    <tr><th style="text-align:left; background:var(--bg-light-gray); font-size:10px;">効果</th></tr>
+                    <tr><td style="height:33%;"><textarea></textarea></td></tr>
+                    
+                    <tr><th style="text-align:left; background:var(--bg-light-gray); font-size:10px;">名称</th></tr>
+                    <tr><td><input type="text"></td></tr>
+                    <tr><th style="text-align:left; background:var(--bg-light-gray); font-size:10px;">効果</th></tr>
+                    <tr><td style="height:33%;"><textarea></textarea></td></tr>
+
+                    <tr><th style="text-align:left; background:var(--bg-light-gray); font-size:10px;">名称</th></tr>
+                    <tr><td><input type="text"></td></tr>
+                    <tr><th style="text-align:left; background:var(--bg-light-gray); font-size:10px;">効果</th></tr>
+                    <tr><td style="height:33%;"><textarea></textarea></td></tr>
                 </table>
             </div>
         </div>
