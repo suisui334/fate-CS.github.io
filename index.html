@@ -286,6 +286,7 @@
                         <span>宝具</span>
                         <div class="secret-toggle" onclick="toggleSecret('secret-np-${i}')" title="クリックで秘匿/公開を切り替え">👁️ 公開</div>
                     </div>
+                    <div class="np-field"><div class="np-label">名称</div><div style="flex:1;"><input type="text" placeholder="宝具名"></div></div>
                     <div class="np-field"><div class="np-label">指定特技</div><div style="flex:1;"><input type="text"></div></div>
                     <div class="np-field" style="flex-direction:column; height:90px;">
                         <div style="font-size:10px; color:#666; padding-left:2px;">効果</div>
@@ -301,6 +302,7 @@
                 <span>真名</span>
                 <div class="secret-toggle" onclick="toggleSecret('secret-truename')" title="クリックで秘匿/公開を切り替え">👁️ 公開</div>
             </div>
+            <div class="np-field"><div class="np-label">名称</div><div style="flex:1;"><input type="text" placeholder="真名を入力"></div></div>
             <div class="np-field" style="flex-direction:column; height:100%;">
                 <div style="font-size:10px; color:#666; padding-left:2px;">説明</div>
                 <textarea style="flex:1; height:200px;"></textarea>
@@ -310,7 +312,7 @@
 </div>
 
 <script>
-const firebaseConfig = {
+    const firebaseConfig = {
   apiKey: "AIzaSyDJdb80UPCVlPeZJUZAeRkUPFEofZFl8PM",
   authDomain: "fate-table-night-cs.firebaseapp.com",
   projectId: "fate-table-night-cs",
@@ -371,22 +373,20 @@ const firebaseConfig = {
         let docId = urlParams.get('id');
         let editPassword = "";
 
-        // URLにIDがある場合（上書き保存の時）は、パスワードをチェックする
         if (docId) {
             try {
                 const doc = await db.collection("characters").doc(docId).get();
                 if (doc.exists) {
                     const existingData = doc.data();
-                    // 既存データにパスワードが設定されている場合
                     if (existingData.password) {
                         const inputPass = prompt("このシートの編集用パスワードを入力してください：");
-                        if (inputPass === null) return; // キャンセルした場合は保存を中止
+                        if (inputPass === null) return; 
                         
                         if (inputPass !== existingData.password) {
                             alert("パスワードが違います！上書き保存できません。");
                             return;
                         }
-                        editPassword = existingData.password; // パスワードが合っていれば維持する
+                        editPassword = existingData.password; 
                     }
                 } else {
                     alert("上書き元のデータが見つかりません。");
@@ -397,14 +397,13 @@ const firebaseConfig = {
                 return;
             }
         } else {
-            // 新規作成の場合は、パスワードを設定してもらう
             const inputPass = prompt("【重要】\n他の人に勝手に上書きされないよう、編集用のパスワードを設定してください。\n（パスワードなしで保存する場合は、何も入力せずにOKを押してください）");
-            if (inputPass === null) return; // キャンセルした場合は保存を中止
+            if (inputPass === null) return; 
             editPassword = inputPass;
         }
 
         const data = collectDataFromSheet();
-        data.password = editPassword; // パスワードも一緒にデータベースへ保存する
+        data.password = editPassword; 
 
         const statusEl = document.getElementById('save-status');
         statusEl.innerText = "保存中...";
