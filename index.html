@@ -380,14 +380,22 @@
 
 <script>
     const firebaseConfig = {
-  apiKey: "AIzaSyDJdb80UPCVlPeZJUZAeRkUPFEofZFl8PM",
-  authDomain: "fate-table-night-cs.firebaseapp.com",
-  projectId: "fate-table-night-cs",
-  storageBucket: "fate-table-night-cs.firebasestorage.app",
-  messagingSenderId: "32996163719",
-  appId: "1:32996163719:web:ff67a8458f723fc50ff822",
-  measurementId: "G-E6LNQ9TLTP"
-};
+      apiKey: "AIzaSyDJdb80UPCVlPeZJUZAeRkUPFEofZFl8PM",
+      authDomain: "fate-table-night-cs.firebaseapp.com",
+      projectId: "fate-table-night-cs",
+      storageBucket: "fate-table-night-cs.firebasestorage.app",
+      messagingSenderId: "32996163719",
+      appId: "1:32996163719:web:ff67a8458f723fc50ff822",
+      measurementId: "G-E6LNQ9TLTP"
+    };
+
+    let db = null;
+    try {
+        firebase.initializeApp(firebaseConfig);
+        db = firebase.firestore();
+    } catch(e) {
+        console.error("Firebaseの初期化エラー:", e);
+    }
 
     function toggleSecret(containerId) {
         const container = document.getElementById(containerId);
@@ -424,6 +432,9 @@
         }
     };
 
+    // ==========================================
+    // 🔒 パスワード機能付きの保存処理
+    // ==========================================
     async function saveToFirebase() {
         if (!db) { alert("Firebaseの設定がされていません！"); return; }
         
@@ -483,7 +494,8 @@
                 alert("パソコン内のファイルとして開いているためURLは発行されません。");
             }
         } catch (error) {
-            alert("保存に失敗しました。"); statusEl.innerText = "";
+            alert("保存に失敗しました。パスワードが違うか、通信エラーです。"); 
+            statusEl.innerText = "";
         }
     }
 
