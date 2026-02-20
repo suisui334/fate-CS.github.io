@@ -157,7 +157,6 @@
         <div class="box">
             <table class="info-table">
                 <tr><td class="label" style="font-weight:bold; background:var(--bg-gray);">サーヴァント<br>クラス</td><td colspan="2"><input type="text"></td></tr>
-                
                 <tr>
                     <td class="label">レベル／経験点</td>
                     <td colspan="2">
@@ -168,7 +167,6 @@
                         </div>
                     </td>
                 </tr>
-                
                 <tr>
                     <td class="label">真名判定</td>
                     <td style="width: 50px;"><input type="number" style="text-align: center;"></td>
@@ -277,25 +275,38 @@
         <div class="box">
             <div class="box-header" style="display:block;">スキル</div>
             <table class="skill-list">
-                <tr><th style="width:25%;">名 称</th><th style="width:12%;">種類</th><th style="width:10%;">コスト</th><th style="width:10%;">射程</th><th style="width:18%;">指定特技</th><th>効 果</th></tr>
-                <tr><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td></tr>
-                <tr><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td></tr>
-                <tr><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td></tr>
-                <tr><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td></tr>
-                <tr><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td></tr>
-                <tr><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td></tr>
-                <tr><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td></tr>
-                <tr><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td></tr>
+                <tr>
+                    <th style="width:20%;">名 称</th>
+                    <th style="width:8%;">種類</th>
+                    <th style="width:5%;">ｺｽﾄ</th>
+                    <th style="width:5%;">射程</th>
+                    <th style="width:12%;">指定特技</th>
+                    <th>効 果</th>
+                </tr>
+                <script>
+                    for(let i=0; i<11; i++) {
+                        document.write(`
+                        <tr>
+                            <td><input type="text"></td>
+                            <td><input type="text"></td>
+                            <td><input type="text" style="text-align:center;"></td>
+                            <td><input type="text" style="text-align:center;"></td>
+                            <td><input type="text"></td>
+                            <td><input type="text"></td>
+                        </tr>
+                        `);
+                    }
+                </script>
             </table>
         </div>
 
         <div style="display:flex; gap:10px;">
-            <div class="box person-info" style="flex:3;">
+            <div class="box person-info" style="flex:3; display:flex; flex-direction:column; margin-bottom:0;">
                 <div class="box-header" style="display:block;">人物・情報</div>
-                <table>
+                <table style="flex:1;">
                     <tr><th style="width:25%;">名 称</th><th style="width:40%;">秘密／居所／宝具／真名</th><th style="width:20%;">絆／タイプ</th><th style="width:15%;">絆点数</th></tr>
                     <script>
-                        for(let i=0; i<13; i++) {
+                        for(let i=0; i<10; i++) {
                             document.write(`
                             <tr>
                                 <td><input type="text"></td>
@@ -309,7 +320,7 @@
                 </table>
             </div>
 
-            <div class="box person-info" style="flex:1; display:flex; flex-direction:column;">
+            <div class="box person-info" style="flex:1; display:flex; flex-direction:column; margin-bottom:0;">
                 <div class="box-header" style="display:block;">弱点スキル</div>
                 <table style="flex:1;">
                     <tr><th style="text-align:left; background:var(--bg-light-gray); font-size:10px;">名称</th></tr>
@@ -377,12 +388,6 @@
   appId: "1:32996163719:web:ff67a8458f723fc50ff822",
   measurementId: "G-E6LNQ9TLTP"
 };
-
-    let db = null;
-    if (Object.keys(firebaseConfig).length > 0) {
-        firebase.initializeApp(firebaseConfig);
-        db = firebase.firestore();
-    }
 
     function toggleSecret(containerId) {
         const container = document.getElementById(containerId);
